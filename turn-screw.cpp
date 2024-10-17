@@ -3,6 +3,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 using namespace std::filesystem;
 // using::std::getline;
@@ -29,6 +30,11 @@ std::string Commands[]{
     "save",
     "{CURRENT_DIRECTORY}",
     "-lg"
+};
+
+std::string CommandsForChange[]{
+    "\"program\":",
+    "\"args\":"
 };
 
 std::string PreDefVariables[]{
@@ -95,7 +101,99 @@ std::pair<int, int> FindTemplateWord(std::string &Line)
     }
     return Indexs;
 }
-
+std::pair<int, int> FindStringToChangeTemplateWord(std::string &Line)
+{
+    std::pair<int, int> Indexes;
+    std::vector<char> StringLine;
+    bool TrueSubString = true;
+    int LastIndex = 0;
+    for(char S:Line)    
+        StringLine.push_back(S);
+        std::vector<char>::iterator it;
+    for(std::string Str:CommandsForChange)
+    {
+        it = find_end(StringLine.begin(), StringLine.end(), Str.c_str(), Str.c_str()+Str.length()-1);
+        if(it!=StringLine.end())
+        {
+            std::cout << "Done!" << std::endl;
+            
+            Indexes.first = it-StringLine.begin();
+            Indexes.second = Indexes.first+Str.length();
+            std::string Word(Line.c_str()+Indexes.first, Line.c_str()+Indexes.second);
+            
+            for(std::string Str:CommandsForChange)
+            {
+                if(Str == Word)
+                    {std::cout << "Command is found!" << std::endl;
+                    for(int i = Indexes.second; i < Line.length(); i++)
+                    {
+                        std::string Symb = "";
+                        Symb += Line[i];
+                        if(Symb == "\"") {Indexes.second = i; break;}
+                    }
+                    if(LastIndex == 0)
+                    {
+                    LastIndex = Indexes.second;
+                    Repeat:
+                    }
+                    for(std::string Str: PreDefVariables)
+                    {
+        
+                        it = find_end(StringLine.begin()+LastIndex, StringLine.end(), Str.c_str(), Str.c_str()+Str.length()-1);
+                        if(it!=StringLine.end())
+                        {
+                            int FirstIndex = it-StringLine.begin();
+                            int SecondIndex = FirstIndex+Str.length();
+                            std::string StrVar(Line.c_str()+FirstIndex, Line.c_str()+SecondIndex);
+                            if(Str == StrVar)
+                                std::cout << StrVar << std::endl;
+                            if(TrueSubString == true)
+                            {
+                                if(LastIndex == SecondIndex)
+                                {TrueSubString = false;}
+                                LastIndex = SecondIndex; 
+                                goto Repeat;
+                            }
+                            for(int i = LastIndex; i < Line.length(); i++)
+                            {
+                                std::string StrSymbol = "";
+                                StrSymbol += Line[i];
+                                if(StrSymbol == "/")
+                                {
+                                    Indexes.first = LastIndex;
+                                    Indexes.second = i;
+                                    return Indexes;
+                                }
+                            }
+                        }
+                    }
+                    }
+                    else {std::cout << "Command is not found!" << std::endl;}
+            }
+            for(int i = LastIndex; i < Line.length(); i++)
+            {
+                std::string Symbol = "";
+                Symbol += Line[i];
+                if(Symbol == "\"")
+                {
+                    Indexes.first = LastIndex+1;
+                    Indexes.second = i;
+                    break;
+                }
+                else if(Line.length()-1 == i)
+                {
+                    Indexes.first = 0;
+                    Indexes.second = 0;
+                }
+            }
+            return Indexes;
+        }
+        
+    }
+    //if(Indexes.first != 0 && Indexes.second != 0)
+    return Indexes;
+        
+}
 bool IsCommand(std::string &Arg)
 {
     // std::string Command;
@@ -116,12 +214,15 @@ struct Arguments
     bool SaveTPL;
     // std::string man;
 };
-
-std::string ChangeLine(std::string &Line, Arguments &MainArgs, std::pair<int, int> IndexsWord)
+#define LAUNCH_FILE 3648796
+#define TASKS_FILE 2057693
+std::string ChangeLine(std::string &Line, Arguments &MainArgs, std::pair<int, int> IndexsWord, int CurrentFile)
 {
+
     std::string Str = Line;
     std::string StrWord;
-
+    if(MainArgs.CreateConfigFiles == true)
+    {
     for (int i = IndexsWord.first; i < IndexsWord.second + 1; i++)
     {
         StrWord += Line[i];
@@ -141,7 +242,20 @@ std::string ChangeLine(std::string &Line, Arguments &MainArgs, std::pair<int, in
         Str.replace(IndexsWord.first, (IndexsWord.second - IndexsWord.first + 1), FILE);
         return Str;
     }
-
+    }
+    else if(MainArgs.SaveTPL == true)
+    {
+        if(CurrentFile == LAUNCH_FILE)
+        {
+            for(int i = IndexsWord.first; i < IndexsWord.second + 1; i++)
+            {
+                StrWord +=Line[i];
+            }
+            std::string FILENAME = "#FILENAME";
+            Str.replace(IndexsWord.first, (IndexsWord.second - IndexsWord.first), FILENAME);
+            return Str;
+        }
+    }
     return Str;
 }
 
@@ -220,7 +334,7 @@ int CreateConfigFiles(Arguments& Args)
                     std::string ConstWord;
                     for (int i = IndexsWords.first; i < IndexsWords.second + 1; i++)
                         ConstWord += Line[i];
-                    std::string StringLine = ChangeLine(Line, Args, IndexsWords);
+                    std::string StringLine = ChangeLine(Line, Args, IndexsWords, LAUNCH_FILE);
                     OutFileLaunch << StringLine << std::endl;
                     // std::cout << StringLine << std::endl;
                     // std::cout << ConstWord << std::endl;
@@ -259,7 +373,7 @@ int CreateConfigFiles(Arguments& Args)
                     std::string ConstWord;
                     for (int i = IndexsWords.first; i < IndexsWords.second + 1; i++)
                         ConstWord += Line[i];
-                    std::string StringLine = ChangeLine(Line, Args, IndexsWords);
+                    std::string StringLine = ChangeLine(Line, Args, IndexsWords, TASKS_FILE);
                     OutTasksFile << StringLine << std::endl;
                     std::cout << StringLine << std::endl;
                     // std::cout << ConstWord << std::endl;
@@ -328,8 +442,23 @@ int SaveTemplates(Arguments& Args)
             std::string Line;
             while(getline(InFileLaunch, Line))
             {
+                std::pair<int, int> REFF = FindStringToChangeTemplateWord(Line);
+                if(REFF.first == 0 && REFF.second == 0)
                 StringsLaunchFile.push_back(Line);
+                else
+                {
+                    std::cout << REFF.first << ":" << REFF.second << std::endl;
+                    std::string ModifiedLine = ChangeLine(Line, Args, REFF, LAUNCH_FILE);
+                    std::cout << "ModifiedLine: " << ModifiedLine << std::endl;
+                    StringsLaunchFile.push_back(ModifiedLine);
+                    std::string Word(Line.c_str()+REFF.first, Line.c_str()+REFF.second);
+                    std::cout << Word << std::endl;
+                }
+                
+
             }
+            InFileLaunch.close();
+            //pair<int, int> REFF = FindStringToChangeTemplateWord()
             std::ifstream InFileTasks(FullPathToTasksFile);
             if (!InFileTasks.is_open())
             {
@@ -339,7 +468,8 @@ int SaveTemplates(Arguments& Args)
             std::vector<std::string> StringsTasksFile;
             while(getline(InFileTasks, Line))
             {StringsTasksFile.push_back(Line);}
-            
+
+            InFileTasks.close();
             
         }
     }
@@ -414,7 +544,7 @@ int main(int argc, char *argv[])
         std::cout << "ERROR: You have mistakes in arguments!" << std::endl;
         return ERROR_ARGS;
     }
-    int NONERRORS = NULL;
+    int NONERRORS = 0;
     // std::cout << "Hello!\n";
     if(MainArguments.CreateConfigFiles == true)
     NONERRORS = CreateConfigFiles(MainArguments);
@@ -430,6 +560,8 @@ int main(int argc, char *argv[])
     */
    NONERRORS = SaveTemplates(MainArguments);
     if(NONERRORS == 0 && MainArguments.SaveTPL == true)
-    {}
+    {
+
+    }
     return 0;
 }
